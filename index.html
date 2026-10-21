@@ -68,7 +68,7 @@
   <p class="sub">Escolha o setor para abrir o formulário do board.</p>
   <p class="label">Setor <b>*</b></p>
   <div class="list" id="list"></div>
-  <p style="text-align:center;color:#555;font-size:11px;margin:24px 0 0">v2</p>
+  <p style="text-align:center;color:#555;font-size:11px;margin:24px 0 0">v3</p>
 </div>
 <div id="form-view">
   <div class="barra">
@@ -95,7 +95,8 @@
 
   const frame = document.getElementById("form-frame");
   function abrirForm(s){
-    frame.src = s.link;
+    // versão "embed" do formulário — a única que o Monday deixa abrir dentro de outra página
+    frame.src = s.embed || s.link.replace("forms.monday.com/forms/", "forms.monday.com/forms/embed/");
     document.getElementById("form-titulo").textContent = s.nome;
     document.getElementById("nova-aba").href = s.link;
     document.body.classList.add("form-aberto");
