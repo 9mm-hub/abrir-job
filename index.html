@@ -128,7 +128,7 @@
     <p class="sub">Escolha o setor para abrir o job.</p>
     <p class="label">Setor <b>*</b></p>
     <div class="list" id="list"></div>
-    <p class="versao">v4.2 · <a href="#" id="btn-diag">verificar configuração</a></p>
+    <p class="versao">v4.3 · <a href="#" id="btn-diag">verificar configuração</a></p>
   </section>
 
   <!-- TELA 2: formulário do app -->
@@ -143,7 +143,7 @@
       </div>
       <div class="campo">
         <label class="label" for="f-job">Job <b>*</b></label>
-        <p class="hint">Ex.: MCI001_CAMPANHA FAKE NEWS · alteração: MCI001A_ALTERAÇÃO FAKE NEWS</p>
+        <p class="hint">Ex.: MCI_0001_26_CAMPANHA FAKE NEWS · alteração: MCI_0001_26A_ALTERAÇÃO FAKE NEWS</p>
         <input id="f-job" type="text" maxlength="255" required autocomplete="off">
         <div class="contador"><span id="f-job-n">0</span>/255</div>
       </div>
@@ -332,33 +332,51 @@ function montarValores(infoB, dados, extras = {}){
 
 /* ---------- ler número e letra do nome ---------- */
 function lerJob(nome, codigo){
-  const resto = "(?:[\\s_\\-]*(\\d{1,5}))(?:([A-Za-z])(?![A-Za-zÀ-ÿ])|[\\s_\\-]+([A-Za-z])(?=[\\s_]|$))?";
-  let m = codigo ? new RegExp("^\\s*" + reEsc(codigo) + resto, "i").exec(nome) : null;
-  if (!m) m = new RegExp("^\\s*[A-Za-z]+(?:_[A-Za-z]+)?" + resto, "i").exec(nome);
+  // padrão: COD_NUM_ANO_LETRA - DESCRIÇÃO  (ano e letra opcionais; aceita _ - espaço)
+  const resto = "[\\s_\\-]*(\\d{1,5})(?:[\\s_\\-]*(\\d{2})(?!\\d))?(?:([A-Za-z])(?![A-Za-zÀ-ÿ])|[\\s_\\-]+([A-Za-z])(?=[\\s_]|$))?";
+  if (!codigo) return null;
+  const m = new RegExp("^\\s*" + reEsc(codigo) + resto, "i").exec(nome);
   if (!m) return null;
   const numero = String(parseInt(m[1], 10));
-  const letra = (m[2] || m[3] || "").toUpperCase();
-  return { numero, numeroTxt: m[1], letra, chave: `${String(codigo || "").toUpperCase()}_${numero}` };
+  const ano = m[2] || String(new Date().getFullYear()).slice(-2);
+  const letra = (m[3] || m[4] || "").toUpperCase();
+  return { numero, numeroTxt: m[1], ano, anoNoNome: !!m[2], letra, chave: `${String(codigo).toUpperCase()}_${numero}_${ano}` };
+}
+// código do cliente no começo do nome (o mais longo que bater: SSC_MKT antes de SSC)
+function codigoDoNome(nome, extras = []){
+  const lista = [...new Set([...CLIENTES, ...extras])].sort((a,b) => b.length - a.length);
+  return lista.find(c => new RegExp("^\\s*" + reEsc(c) + "(?=[\\s_\\-]*\\d)", "i").test(nome)) || "";
 }
 
-/* ---------- procurar a chave nos boards ---------- */
-async function procurarChave(est, chave){
+/* ---------- procurar o job nos boards (pela Chave e, para jobs antigos, pelo nome) ---------- */
+async function procurarJob(est, lido, codigo){
   const partes = [];
   for (const [setor, bid] of Object.entries(est.boardDoSetor)){
     const inf = est.info[bid];
-    if (!inf || !inf.chave) continue;
-    const ligIds = inf.ligacoes.map(l => gq(l.id)).join(",");
-    partes.push(`b${bid}: boards(ids: [${bid}]) { id items_page(limit: 20, query_params: {rules: [{column_id: ${gq(inf.chave.id)}, compare_value: [${gq(chave)}], operator: any_of}]}) { items { id name group { title } ${ligIds ? `column_values(ids: [${ligIds}]) { id ... on BoardRelationValue { linked_item_ids } }` : ""} } } }`);
+    if (!inf) continue;
+    if (setor !== SETOR_ATUAL.nome && !inf.chave) continue;
+    const ligIds = inf.ligacoes.map(l => gq(l.id));
+    const cv = [...ligIds, ...(inf.chave ? [gq(inf.chave.id)] : [])];
+    const campos = `items { id name group { title } ${cv.length ? `column_values(ids: [${cv.join(",")}]) { id text ... on BoardRelationValue { linked_item_ids } }` : ""} }`;
+    if (inf.chave) partes.push(`c${bid}: boards(ids: [${bid}]) { id items_page(limit: 20, query_params: {rules: [{column_id: ${gq(inf.chave.id)}, compare_value: [${gq(lido.chave)}], operator: any_of}]}) { ${campos} } }`);
+    partes.push(`n${bid}: boards(ids: [${bid}]) { id items_page(limit: 50, query_params: {rules: [{column_id: "name", compare_value: [${gq(lido.numeroTxt)}], operator: contains_text}]}) { ${campos} } }`);
   }
   if (!partes.length) return [];
   const d = await api(`query { ${partes.join("\n")} }`);
-  const achados = [];
-  for (const v of Object.values(d)){
+  const porId = {};
+  for (const [alias, v] of Object.entries(d)){
     const b = (v || [])[0]; if (!b) continue;
     const setor = Object.keys(est.boardDoSetor).find(k => est.boardDoSetor[k] === String(b.id));
-    for (const it of (b.items_page?.items || [])) achados.push({ ...it, boardId: String(b.id), setor });
+    const inf = est.info[String(b.id)];
+    for (const it of (b.items_page?.items || [])){
+      const chaveAtual = inf?.chave ? ((it.column_values || []).find(c => c.id === inf.chave.id)?.text || "") : "";
+      const l = lerJob(it.name, codigo);
+      const bate = alias[0] === "c" || (l && l.chave === lido.chave) || (l && !l.anoNoNome && !lido.anoNoNome && l.numero === lido.numero);
+      if (!bate) continue;
+      porId[it.id] = { ...it, boardId: String(b.id), setor, letra: l ? l.letra : "", semChave: !chaveAtual };
+    }
   }
-  return achados;
+  return Object.values(porId);
 }
 
 /* ---------- fluxo do formulário ---------- */
@@ -421,9 +439,18 @@ async function montarPlano(dados){
   const setor = SETOR_ATUAL.nome;
   const bid = est.boardDoSetor[setor];
   const inf = est.info[bid];
-  const lido = lerJob(dados.job, dados.cliente);
+  const avisosCod = [];
+  let codigo = dados.cliente;
+  const codNome = codigoDoNome(dados.job, inf.opcoesCliente);
+  if (!new RegExp("^\\s*" + reEsc(codigo) + "(?=[\\s_\\-]*\\d)", "i").test(dados.job)){
+    if (codNome){
+      avisosCod.push(`O cliente escolhido (<b>${esc(codigo)}</b>) não bate com o código no nome do job (<b>${esc(codNome)}</b>). Usei <b>${esc(codNome)}</b> para achar o job.`);
+      codigo = codNome;
+    }
+  }
+  const lido = lerJob(dados.job, codigo);
   const linhas = [];
-  const avisos = [];
+  const avisos = [...avisosCod];
 
   if (!lido){
     avisos.push(`Não encontrei o número do job no nome. O job vai entrar como item novo, sem ligação com outras áreas.`);
@@ -431,16 +458,17 @@ async function montarPlano(dados){
   }
   if (!inf.chave) avisos.push(`O board "${inf.name}" não tem a coluna "${COLUNAS.chave}". O job vai entrar sem chave.`);
 
-  const achados = await procurarChave(est, lido.chave);
+  const achados = await procurarJob(est, lido, codigo);
   const aqui = achados.filter(a => a.boardId === bid);
   const outros = achados.filter(a => a.boardId !== bid);
 
-  linhas.push(`Número <b>${esc(lido.numeroTxt)}</b>${lido.letra ? `, letra <b>${esc(lido.letra)}</b>` : ", sem letra"} · chave <b>${esc(lido.chave)}</b>`);
+  linhas.push(`Número <b>${esc(lido.numeroTxt)}</b>${lido.anoNoNome ? `, ano <b>${esc(lido.ano)}</b>` : ""}${lido.letra ? `, letra <b>${esc(lido.letra)}</b>` : ", sem letra"} · chave <b>${esc(lido.chave)}</b>`);
 
   // A) alteração com raiz neste board -> subelemento
   if (lido.letra && aqui.length){
-    const raiz = aqui[0];
-    if (aqui.length > 1) avisos.push(`Existem ${aqui.length} jobs com essa chave neste board. Vou usar o primeiro: ${esc(raiz.name)}.`);
+    const raiz = aqui.find(x => !x.letra) || aqui[0];
+    const raizes = aqui.filter(x => !x.letra);
+    if (raizes.length > 1) avisos.push(`Existem ${raizes.length} jobs raiz com esse número neste board. Vou usar: ${esc(raiz.name)}.`);
     const subInf = est.subInfo[inf.subBoardId];
     if (!subInf) throw new Error(`O board "${inf.name}" não tem coluna de subelementos.`);
     linhas.push(`Entra como <b>subelemento</b> de <b>${esc(raiz.name)}</b> <span class="pill ok">${esc(raiz.group?.title || "")}</span>`);
@@ -448,7 +476,7 @@ async function montarPlano(dados){
     const faltam = [["Clientes",subInf.cliente],["Link do Briefing",subInf.briefing],["Prazo",subInf.prazo]].filter(x => !x[1]).map(x => x[0]);
     if (faltam.length) avisos.push(`Os subelementos deste board não têm: ${faltam.join(", ")}. Esses campos ficam de fora do subelemento.`);
     return {
-      tipo: "subelemento", dados, bid, raiz, subInf, botao: "Confirmar e criar subelemento",
+      tipo: "subelemento", dados, bid, raiz, subInf, chave: lido.chave, chaveCol: inf.chave, botao: "Confirmar e criar subelemento",
       html: resumoHtml(setor, "Alteração", linhas, avisos)
     };
   }
@@ -507,6 +535,9 @@ $("c-criar").addEventListener("click", async () => {
       const vals = montarValores(p.subInf, p.dados);
       const d = await api(`mutation { create_subitem(parent_item_id: ${p.raiz.id}, item_name: ${gq(p.dados.job)}, column_values: ${gq(JSON.stringify(vals))}, create_labels_if_missing: true) { id name } }`);
       id = d.create_subitem.id; nome = d.create_subitem.name;
+      if (p.raiz.semChave && p.chaveCol){
+        try { await api(`mutation { change_simple_column_value(board_id: ${p.bid}, item_id: ${p.raiz.id}, column_id: ${gq(p.chaveCol.id)}, value: ${gq(p.chave)}) { id } }`); } catch(_) {}
+      }
       CRIADO = { id, nome, texto: `Subelemento criado em <b>${esc(p.raiz.name)}</b>.` };
     } else {
       const vals = montarValores(p.inf, p.dados, { chave: p.chave, ligacoes: p.ligacoes });
