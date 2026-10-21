@@ -7,28 +7,40 @@
 <title>Abrir Job · 9mm</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/monday-sdk-js@0.5.9/dist/main.js"></script>
 <script>
-  /* ============ CONFIGURAÇÃO ============
-     link  = formulário do board do setor
-     tipos = [nome, cor] — só informativo   */
+  /* ================= CONFIGURAÇÃO =================
+     formApp: true  -> usa o formulário DESTE app (cria item/subelemento direto no board)
+     formApp: false -> abre o formulário do Monday (link) dentro do widget
+     boardId: opcional. Se vazio, o app procura o board pelo nome do setor.
+     ================================================= */
   const SETORES = [
-    { nome: "Criação", link: "https://forms.monday.com/forms/64128c1e245d79a0ecfbdf579c2b3850?r=use1",
-      tipos: [["Criação do Zero","#757575"],["Alterações","#5b7fbf"],["Desdobramento","#d0587a"],["Newsletter","#359970"],["Pauta","#b57de3"],["Blog","#ff7bd0"]] },
-    { nome: "Mídia e Performance", link: "https://forms.monday.com/forms/24e34c97beda1f49ee1a620cd2adb327?r=use1",
-      tipos: [["Mídia Off","#fdab3d"],["Mídia On e Perfor.","#00c875"],["Mídia On e Off","#e2445c"],["Relatório Mídia","#a25ddc"]] },
-    { nome: "Digital", link: "https://forms.monday.com/forms/f6aafa78faf2b562d26143180444cbe9?r=use1",
-      tipos: [["Ag. Redes","#fdab3d"],["Ag. Emails","#00c875"],["Ag. Redes e Emails","#e2445c"],["Relatório Digital","#0086c0"],["Social Media","#a25ddc"]] },
-    { nome: "Arte Final", link: "https://forms.monday.com/forms/044c5fe3aec0135bab7e11f8bff0e170?r=use1", tipos: [] },
-    { nome: "Revisão", link: "https://forms.monday.com/forms/aaab2047ddfb2034eebc145fc21e4a5a?r=use1", tipos: [] },
-    { nome: "Produção", link: "https://forms.monday.com/forms/8dbe2da4e3abff4821e55d134dc33f43?r=use1", tipos: [] },
-    { nome: "CRM", link: "https://forms.monday.com/forms/f1b7f1c0991ba2a74e43aebfb571ae5b?r=use1",
-      tipos: [["Criação CRM","#fdab3d"],["Desenvolvedor","#00c875"],["Disparo","#0086c0"],["Jornada","#e2445c"],["Relatório CRM","#579bfc"],["Desenvolvedor e Disparo","#cab641"],["Criação, Desenvolvedor e Disparo","#a25ddc"],["Criação e Desenvolvedor","#037f4c"]] }
+    { nome: "Criação", formApp: true, boardId: "", link: "https://forms.monday.com/forms/64128c1e245d79a0ecfbdf579c2b3850?r=use1",
+      tipos: ["Criação do Zero","Alterações","Desdobramento","Newsletter","Pauta","Blog"] },
+    { nome: "Mídia e Performance", formApp: true, boardId: "", link: "https://forms.monday.com/forms/24e34c97beda1f49ee1a620cd2adb327?r=use1",
+      tipos: ["Mídia Off","Mídia On e Perfor.","Mídia On e Off","Relatório Mídia"] },
+    { nome: "Digital", formApp: false, boardId: "", link: "https://forms.monday.com/forms/f6aafa78faf2b562d26143180444cbe9?r=use1",
+      tipos: ["Ag. Redes","Ag. Emails","Ag. Redes e Emails","Relatório Digital","Social Media"] },
+    { nome: "Arte Final", formApp: false, boardId: "", link: "https://forms.monday.com/forms/044c5fe3aec0135bab7e11f8bff0e170?r=use1", tipos: [] },
+    { nome: "Revisão", formApp: false, boardId: "", link: "https://forms.monday.com/forms/aaab2047ddfb2034eebc145fc21e4a5a?r=use1", tipos: [] },
+    { nome: "Produção", formApp: false, boardId: "", link: "https://forms.monday.com/forms/8dbe2da4e3abff4821e55d134dc33f43?r=use1", tipos: [] },
+    { nome: "CRM", formApp: false, boardId: "", link: "https://forms.monday.com/forms/f1b7f1c0991ba2a74e43aebfb571ae5b?r=use1",
+      tipos: ["Criação CRM","Desenvolvedor","Disparo","Jornada","Relatório CRM","Desenvolvedor e Disparo","Criação, Desenvolvedor e Disparo","Criação e Desenvolvedor"] }
   ];
+
+  /* Títulos das colunas nos boards (iguais aos do formulário atual) */
+  const COLUNAS = {
+    cliente: "Clientes",
+    briefing: "Link do Briefing",
+    prazo: "Prazo",
+    chave: "Chave"
+  };
 </script>
 <style>
   :root{
     --bg:#0a0a0a; --panel:#101010; --field:#2c2c2c; --field-hover:#353535;
     --line:#3a3a3a; --text:#e8e8e8; --muted:#9a9a9a; --brand:#faaf16; --cta:#fad521;
+    --ok:#00c875; --warn:#fdab3d; --err:#e2445c;
   }
   *{box-sizing:border-box}
   html,body{margin:0}
@@ -37,8 +49,9 @@
   .logo{display:block;margin:0 auto 14px;width:79px;height:auto}
   h1{text-align:center;font-weight:300;font-size:24px;color:#cfcfcf;margin:0 0 6px}
   .sub{text-align:center;color:var(--muted);font-size:14px;margin:0 0 30px}
-  .label{font-size:14px;font-weight:500;color:#d6d6d6;margin:0 0 8px}
-  .label b{color:#e2445c;font-weight:500}
+  .label{display:block;font-size:14px;font-weight:500;color:#d6d6d6;margin:0 0 8px}
+  .label b{color:var(--err);font-weight:500}
+  .hint{font-size:12px;color:var(--muted);margin:-4px 0 8px}
   .list{display:flex;flex-direction:column;gap:12px}
   a.setor{display:block;text-decoration:none;color:inherit;background:var(--field);border:1px solid var(--line);border-radius:4px;padding:13px 14px;transition:background .12s,border-color .12s}
   a.setor:hover{background:var(--field-hover);border-color:var(--brand)}
@@ -48,28 +61,135 @@
   .abrir{font-size:13px;font-weight:600;color:#1a1a1a;background:var(--cta);border-radius:4px;padding:5px 12px;white-space:nowrap}
   .tipos{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
   .tipo{font-size:11px;color:#a8a8a8;background:#383838;border:1px solid #444;padding:2px 7px;border-radius:2px;line-height:1.3}
+  .versao{text-align:center;color:#555;font-size:11px;margin:24px 0 0}
+  .versao a{color:#666}
+
+  /* tela do formulário do Monday embutido */
   #form-view{display:none;position:fixed;inset:0;background:var(--bg);flex-direction:column}
   body.form-aberto #form-view{display:flex}
-  body.form-aberto .panel{display:none}
+  body.form-aberto #tela-setores{display:none}
   .barra{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
-  .voltar{font:inherit;font-size:14px;font-weight:600;color:#1a1a1a;background:var(--cta);border:0;border-radius:4px;padding:7px 14px;cursor:pointer}
-  .voltar:hover{filter:brightness(1.05)}
   .barra-titulo{font-size:15px;color:#cfcfcf;flex:1;text-align:center}
   .nova-aba{font-size:13px;color:var(--muted);text-decoration:none;white-space:nowrap}
   .nova-aba:hover{color:var(--text)}
   #form-frame{flex:1;width:100%;border:0;background:#fff}
+
+  /* botões */
+  .btn{font:inherit;font-size:14px;font-weight:600;border-radius:4px;padding:9px 16px;cursor:pointer;border:0}
+  .btn-cta{color:#1a1a1a;background:var(--cta)}
+  .btn-cta:hover{filter:brightness(1.05)}
+  .btn-cta:disabled{opacity:.5;cursor:default}
+  .btn-sec{color:var(--text);background:transparent;border:1px solid var(--line)}
+  .btn-sec:hover{border-color:var(--muted)}
+  .voltar{font:inherit;font-size:14px;font-weight:600;color:#1a1a1a;background:var(--cta);border:0;border-radius:4px;padding:7px 14px;cursor:pointer}
+  .acoes{display:flex;gap:10px;justify-content:flex-end;margin-top:26px;flex-wrap:wrap}
+
+  /* formulário do app */
+  .tela{display:none}
+  .tela.ativa{display:block}
+  .campo{margin-bottom:22px}
+  .campo input,.campo select{width:100%;font:inherit;font-size:15px;color:var(--text);background:var(--field);border:1px solid var(--line);border-radius:4px;padding:10px 12px;outline:none}
+  .campo input:focus,.campo select:focus{border-color:var(--brand)}
+  .campo input[type=date]{color-scheme:dark;max-width:220px}
+  .contador{font-size:11px;color:var(--muted);text-align:right;margin-top:4px}
+  .setor-tag{display:inline-block;font-size:12px;color:#1a1a1a;background:var(--cta);border-radius:3px;padding:2px 8px;margin-bottom:22px}
+
+  /* resumo / mensagens */
+  .resumo{background:var(--field);border:1px solid var(--line);border-radius:6px;padding:16px 18px;font-size:14px;line-height:1.55}
+  .resumo h3{margin:0 0 10px;font-size:15px;font-weight:600}
+  .resumo ul{margin:8px 0 0;padding-left:18px}
+  .resumo li{margin:3px 0}
+  .pill{display:inline-block;font-size:11px;font-weight:600;border-radius:3px;padding:1px 7px;margin-left:4px;vertical-align:1px}
+  .pill.ok{background:rgba(0,200,117,.15);color:var(--ok)}
+  .pill.warn{background:rgba(253,171,61,.15);color:var(--warn)}
+  .msg{border-radius:6px;padding:12px 14px;font-size:14px;margin-top:16px;line-height:1.5}
+  .msg.err{background:rgba(226,68,92,.12);border:1px solid rgba(226,68,92,.4);color:#ffb3bf}
+  .msg.warn{background:rgba(253,171,61,.1);border:1px solid rgba(253,171,61,.4);color:#ffd59a}
+  .msg.ok{background:rgba(0,200,117,.1);border:1px solid rgba(0,200,117,.4);color:#9ff0cc}
+  .carregando{color:var(--muted);font-size:14px;text-align:center;padding:24px 0}
+  pre.diag{white-space:pre-wrap;font-size:12px;color:#bdbdbd;background:#181818;border:1px solid var(--line);border-radius:6px;padding:12px;max-height:60vh;overflow:auto}
   @media (max-width:480px){.panel{padding:28px 18px 32px}}
 </style>
 </head>
 <body>
-<div class="panel">
+
+<div class="panel" id="tela-setores">
   <img class="logo" src="data:image/png;base64,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" alt="9mm Comunicação">
-  <h1>Abrir Job</h1>
-  <p class="sub">Escolha o setor para abrir o formulário do board.</p>
-  <p class="label">Setor <b>*</b></p>
-  <div class="list" id="list"></div>
-  <p style="text-align:center;color:#555;font-size:11px;margin:24px 0 0">v3</p>
+
+  <!-- TELA 1: escolher setor -->
+  <section class="tela ativa" id="t-setores">
+    <h1>Abrir Job</h1>
+    <p class="sub">Escolha o setor para abrir o job.</p>
+    <p class="label">Setor <b>*</b></p>
+    <div class="list" id="list"></div>
+    <p class="versao">v4 · <a href="#" id="btn-diag">verificar configuração</a></p>
+  </section>
+
+  <!-- TELA 2: formulário do app -->
+  <section class="tela" id="t-form">
+    <h1>Abrir Job</h1>
+    <p class="sub">Preencha os dados do job.</p>
+    <span class="setor-tag" id="f-setor"></span>
+    <form id="form-job" novalidate>
+      <div class="campo">
+        <label class="label" for="f-cliente">Clientes <b>*</b></label>
+        <select id="f-cliente" required><option value="">Carregando…</option></select>
+      </div>
+      <div class="campo">
+        <label class="label" for="f-job">Job <b>*</b></label>
+        <p class="hint">Ex.: MCI001_CAMPANHA FAKE NEWS · alteração: MCI001A_ALTERAÇÃO FAKE NEWS</p>
+        <input id="f-job" type="text" maxlength="255" required autocomplete="off">
+        <div class="contador"><span id="f-job-n">0</span>/255</div>
+      </div>
+      <div class="campo">
+        <label class="label" for="f-briefing">Link do Briefing <b>*</b></label>
+        <input id="f-briefing" type="url" required placeholder="https://">
+      </div>
+      <div class="campo">
+        <label class="label" for="f-prazo">Prazo <b>*</b></label>
+        <p class="hint">Data de entrega.</p>
+        <input id="f-prazo" type="date" required>
+      </div>
+      <div id="f-msg"></div>
+      <div class="acoes">
+        <button type="button" class="btn btn-sec" data-voltar>← Setores</button>
+        <button type="submit" class="btn btn-cta" id="f-continuar">Continuar</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- TELA 3: confirmar -->
+  <section class="tela" id="t-confirmar">
+    <h1>Confirmar</h1>
+    <p class="sub">Veja o que vai acontecer antes de criar.</p>
+    <div id="c-resumo"></div>
+    <div id="c-msg"></div>
+    <div class="acoes">
+      <button type="button" class="btn btn-sec" id="c-editar">← Editar</button>
+      <button type="button" class="btn btn-cta" id="c-criar">Confirmar e criar</button>
+    </div>
+  </section>
+
+  <!-- TELA 4: pronto -->
+  <section class="tela" id="t-pronto">
+    <h1>Pronto!</h1>
+    <div id="p-resumo"></div>
+    <div class="acoes">
+      <button type="button" class="btn btn-sec" id="p-abrir">Abrir no Monday</button>
+      <button type="button" class="btn btn-cta" data-voltar>Abrir outro job</button>
+    </div>
+  </section>
+
+  <!-- TELA 5: diagnóstico -->
+  <section class="tela" id="t-diag">
+    <h1>Configuração</h1>
+    <p class="sub">O que o app encontrou nos boards.</p>
+    <pre class="diag" id="d-saida">Verificando…</pre>
+    <div class="acoes"><button type="button" class="btn btn-sec" data-voltar>← Setores</button></div>
+  </section>
 </div>
+
+<!-- formulário do Monday embutido (setores com formApp: false) -->
 <div id="form-view">
   <div class="barra">
     <button class="voltar" id="voltar">← Setores</button>
@@ -78,33 +198,382 @@
   </div>
   <iframe id="form-frame" title="Formulário" allow="clipboard-write"></iframe>
 </div>
-<script>
-  const list = document.getElementById("list");
-  SETORES.forEach(s => {
-    const a = document.createElement("a");
-    a.className = "setor"; a.href = s.link;
-    const tipos = s.tipos.length
-      ? `<div class="tipos">${s.tipos.map(([t,c]) => `<span class="tipo">${t}</span>`).join("")}</div>` : "";
-    a.innerHTML = `<div class="top"><span class="nome">${s.nome}</span><span class="abrir">Abrir job →</span></div>${tipos}`;
-    a.addEventListener("click", e => {
-      e.preventDefault();
-      abrirForm(s);
-    });
-    list.appendChild(a);
-  });
 
-  const frame = document.getElementById("form-frame");
-  function abrirForm(s){
-    // versão "embed" do formulário — a única que o Monday deixa abrir dentro de outra página
-    frame.src = s.embed || s.link.replace("forms.monday.com/forms/", "forms.monday.com/forms/embed/");
-    document.getElementById("form-titulo").textContent = s.nome;
-    document.getElementById("nova-aba").href = s.link;
-    document.body.classList.add("form-aberto");
+<script>
+/* ---------- utilidades ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const norm = s => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+function mostrar(id){
+  document.querySelectorAll(".tela").forEach(t => t.classList.toggle("ativa", t.id === id));
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll("[data-voltar]").forEach(b => b.addEventListener("click", () => mostrar("t-setores")));
+
+/* ---------- Monday SDK ---------- */
+const monday = window.mondaySdk ? window.mondaySdk() : null;
+
+function api(query){
+  if (!monday) return Promise.reject(new Error("SDK do Monday não carregou."));
+  return Promise.race([
+    monday.api(query).then(r => {
+      if (r && r.errors && r.errors.length) throw new Error(r.errors.map(e => e.message).join(" | "));
+      if (r && r.error_message) throw new Error(r.error_message);
+      return r.data;
+    }),
+    new Promise((_, rej) => setTimeout(() => rej(new Error("Sem resposta do Monday. Abra esta página pelo widget dentro do Monday.")), 15000))
+  ]);
+}
+const gq = s => JSON.stringify(String(s)); // string segura dentro da query
+
+/* ---------- descobrir boards e colunas ---------- */
+let CACHE = null;
+
+async function carregarEstrutura(){
+  if (CACHE) return CACHE;
+  // 1) achar os boards
+  const semId = SETORES.filter(s => !s.boardId);
+  let todos = [];
+  if (semId.length){
+    for (let page = 1; page <= 5; page++){
+      const d = await api(`query { boards(limit: 200, page: ${page}, state: active) { id name type } }`);
+      const lote = (d.boards || []).filter(b => b.type !== "sub_items_board");
+      todos = todos.concat(lote);
+      if ((d.boards || []).length < 200) break;
+    }
   }
-  document.getElementById("voltar").addEventListener("click", () => {
-    document.body.classList.remove("form-aberto");
-    frame.src = "about:blank";
-  });
+  const boardDoSetor = {};
+  const avisos = [];
+  for (const s of SETORES){
+    if (s.boardId){ boardDoSetor[s.nome] = String(s.boardId); continue; }
+    const achados = todos.filter(b => norm(b.name) === norm(s.nome));
+    if (achados.length === 1) boardDoSetor[s.nome] = String(achados[0].id);
+    else if (achados.length > 1) avisos.push(`"${s.nome}": ${achados.length} boards com esse nome (${achados.map(b=>b.id).join(", ")}). Coloque o boardId na configuração.`);
+    else avisos.push(`"${s.nome}": nenhum board com esse nome.`);
+  }
+  // 2) colunas de cada board
+  const ids = Object.values(boardDoSetor);
+  const info = {};
+  if (ids.length){
+    const d = await api(`query { boards(ids: [${ids.join(",")}]) { id name columns { id title type settings_str } } }`);
+    for (const b of d.boards || []) info[b.id] = montarInfoBoard(b);
+  }
+  // 3) colunas dos subelementos
+  const subIds = [...new Set(Object.values(info).map(i => i.subBoardId).filter(Boolean))];
+  const subInfo = {};
+  if (subIds.length){
+    const d = await api(`query { boards(ids: [${subIds.join(",")}]) { id name columns { id title type settings_str } } }`);
+    for (const b of d.boards || []) subInfo[b.id] = montarInfoBoard(b);
+  }
+  CACHE = { boardDoSetor, info, subInfo, avisos };
+  return CACHE;
+}
+
+function montarInfoBoard(b){
+  const cols = b.columns || [];
+  const porTitulo = t => cols.find(c => norm(c.title) === norm(t));
+  const parse = s => { try { return JSON.parse(s || "{}"); } catch(_) { return {}; } };
+  const sub = cols.find(c => c.type === "subtasks");
+  const ligacoes = cols.filter(c => c.type === "board_relation").map(c => ({ id: c.id, title: c.title, boardIds: (parse(c.settings_str).boardIds || []).map(String) }));
+  const cliente = porTitulo(COLUNAS.cliente);
+  let opcoesCliente = [];
+  if (cliente){
+    const st = parse(cliente.settings_str);
+    if (cliente.type === "dropdown"){
+      const l = st.labels || [];
+      opcoesCliente = Array.isArray(l) ? l.map(x => typeof x === "string" ? x : x.name) : Object.values(l);
+    } else if (cliente.type === "status"){
+      opcoesCliente = Object.values(st.labels || {});
+    }
+    opcoesCliente = opcoesCliente.filter(Boolean).sort((a,b) => a.localeCompare(b, "pt"));
+  }
+  return {
+    id: String(b.id), name: b.name,
+    cliente, opcoesCliente,
+    briefing: porTitulo(COLUNAS.briefing),
+    prazo: porTitulo(COLUNAS.prazo),
+    chave: porTitulo(COLUNAS.chave),
+    subBoardId: sub ? String((parse(sub.settings_str).boardIds || [])[0] || "") : "",
+    ligacoes
+  };
+}
+
+/* ---------- valores das colunas ---------- */
+function valorColuna(col, tipo, v){
+  if (!col || v === "" || v == null) return null;
+  switch (col.type){
+    case "dropdown": return { labels: [v] };
+    case "status":   return { label: v };
+    case "link":     return { url: v, text: v };
+    case "timeline": return { from: v, to: v };
+    case "date":     return { date: v };
+    case "text": case "long_text": return col.type === "long_text" ? { text: v } : v;
+    default: return v;
+  }
+}
+function montarValores(infoB, dados, extras = {}){
+  const vals = {};
+  const put = (col, v) => { const x = valorColuna(col, null, v); if (col && x != null) vals[col.id] = x; };
+  put(infoB.cliente, dados.cliente);
+  put(infoB.briefing, dados.briefing);
+  put(infoB.prazo, dados.prazo);
+  if (extras.chave) put(infoB.chave, extras.chave);
+  if (extras.ligacoes) for (const [colId, itemIds] of Object.entries(extras.ligacoes)) vals[colId] = { item_ids: itemIds.map(Number) };
+  return vals;
+}
+
+/* ---------- ler número e letra do nome ---------- */
+function lerJob(nome, codigo){
+  const resto = "(?:[\\s_\\-]*0*(\\d{1,4}))(?:([A-Za-z])(?![A-Za-zÀ-ÿ])|[\\s_\\-]+([A-Za-z])(?=[\\s_]|$))?";
+  let m = codigo ? new RegExp("^\\s*" + reEsc(codigo) + resto, "i").exec(nome) : null;
+  if (!m) m = new RegExp("^\\s*[A-Za-z]+(?:_[A-Za-z]+)?" + resto, "i").exec(nome);
+  if (!m) return null;
+  const numero = String(parseInt(m[1], 10));
+  const letra = (m[2] || m[3] || "").toUpperCase();
+  return { numero, numeroTxt: m[1], letra, chave: `${String(codigo || "").toUpperCase()}_${numero}` };
+}
+
+/* ---------- procurar a chave nos boards ---------- */
+async function procurarChave(est, chave){
+  const partes = [];
+  for (const [setor, bid] of Object.entries(est.boardDoSetor)){
+    const inf = est.info[bid];
+    if (!inf || !inf.chave) continue;
+    const ligIds = inf.ligacoes.map(l => gq(l.id)).join(",");
+    partes.push(`b${bid}: boards(ids: [${bid}]) { id items_page(limit: 20, query_params: {rules: [{column_id: ${gq(inf.chave.id)}, compare_value: [${gq(chave)}], operator: any_of}]}) { items { id name group { title } ${ligIds ? `column_values(ids: [${ligIds}]) { id ... on BoardRelationValue { linked_item_ids } }` : ""} } } }`);
+  }
+  if (!partes.length) return [];
+  const d = await api(`query { ${partes.join("\n")} }`);
+  const achados = [];
+  for (const v of Object.values(d)){
+    const b = (v || [])[0]; if (!b) continue;
+    const setor = Object.keys(est.boardDoSetor).find(k => est.boardDoSetor[k] === String(b.id));
+    for (const it of (b.items_page?.items || [])) achados.push({ ...it, boardId: String(b.id), setor });
+  }
+  return achados;
+}
+
+/* ---------- fluxo do formulário ---------- */
+let SETOR_ATUAL = null, PLANO = null, CRIADO = null;
+
+async function abrirFormApp(s){
+  SETOR_ATUAL = s;
+  $("f-setor").textContent = s.nome;
+  $("f-msg").innerHTML = "";
+  $("form-job").reset(); $("f-job-n").textContent = "0";
+  mostrar("t-form");
+  const sel = $("f-cliente");
+  sel.innerHTML = `<option value="">Carregando…</option>`;
+  try{
+    const est = await carregarEstrutura();
+    const bid = est.boardDoSetor[s.nome];
+    const inf = est.info[bid];
+    if (!inf) throw new Error(`Não encontrei o board do setor "${s.nome}". Use "verificar configuração" na tela inicial.`);
+    if (!inf.opcoesCliente.length) throw new Error(`O board "${inf.name}" não tem a coluna "${COLUNAS.cliente}" (lista suspensa ou status).`);
+    sel.innerHTML = `<option value=""></option>` + inf.opcoesCliente.map(o => `<option>${esc(o)}</option>`).join("");
+  }catch(e){
+    sel.innerHTML = `<option value="">—</option>`;
+    $("f-msg").innerHTML = `<div class="msg err">${esc(e.message)}</div>`;
+  }
+}
+
+$("f-job").addEventListener("input", e => $("f-job-n").textContent = e.target.value.length);
+
+$("form-job").addEventListener("submit", async e => {
+  e.preventDefault();
+  const dados = {
+    cliente: $("f-cliente").value.trim(),
+    job: $("f-job").value.trim(),
+    briefing: $("f-briefing").value.trim(),
+    prazo: $("f-prazo").value
+  };
+  const falta = [];
+  if (!dados.cliente) falta.push("Clientes");
+  if (!dados.job) falta.push("Job");
+  if (!dados.briefing) falta.push("Link do Briefing");
+  if (!dados.prazo) falta.push("Prazo");
+  if (falta.length){ $("f-msg").innerHTML = `<div class="msg err">Preencha: ${falta.join(", ")}.</div>`; return; }
+
+  const btn = $("f-continuar"); btn.disabled = true; btn.textContent = "Verificando…";
+  $("f-msg").innerHTML = "";
+  try{
+    PLANO = await montarPlano(dados);
+    $("c-resumo").innerHTML = PLANO.html;
+    $("c-msg").innerHTML = "";
+    $("c-criar").disabled = false; $("c-criar").textContent = PLANO.botao;
+    mostrar("t-confirmar");
+  }catch(err){
+    $("f-msg").innerHTML = `<div class="msg err">${esc(err.message)}</div>`;
+  }finally{ btn.disabled = false; btn.textContent = "Continuar"; }
+});
+
+async function montarPlano(dados){
+  const est = await carregarEstrutura();
+  const setor = SETOR_ATUAL.nome;
+  const bid = est.boardDoSetor[setor];
+  const inf = est.info[bid];
+  const lido = lerJob(dados.job, dados.cliente);
+  const linhas = [];
+  const avisos = [];
+
+  if (!lido){
+    avisos.push(`Não encontrei o número do job no nome. O job vai entrar como item novo, sem ligação com outras áreas.`);
+    return planoItemNovo({ dados, bid, inf, chave: null, ligacoes: {}, linhas, avisos, titulo: "Job novo" });
+  }
+  if (!inf.chave) avisos.push(`O board "${inf.name}" não tem a coluna "${COLUNAS.chave}". O job vai entrar sem chave.`);
+
+  const achados = await procurarChave(est, lido.chave);
+  const aqui = achados.filter(a => a.boardId === bid);
+  const outros = achados.filter(a => a.boardId !== bid);
+
+  linhas.push(`Número <b>${esc(lido.numeroTxt)}</b>${lido.letra ? `, letra <b>${esc(lido.letra)}</b>` : ", sem letra"} · chave <b>${esc(lido.chave)}</b>`);
+
+  // A) alteração com raiz neste board -> subelemento
+  if (lido.letra && aqui.length){
+    const raiz = aqui[0];
+    if (aqui.length > 1) avisos.push(`Existem ${aqui.length} jobs com essa chave neste board. Vou usar o primeiro: ${esc(raiz.name)}.`);
+    const subInf = est.subInfo[inf.subBoardId];
+    if (!subInf) throw new Error(`O board "${inf.name}" não tem coluna de subelementos.`);
+    linhas.push(`Entra como <b>subelemento</b> de <b>${esc(raiz.name)}</b> <span class="pill ok">${esc(raiz.group?.title || "")}</span>`);
+    linhas.push(`Sua automação de subelemento cuida de mover o job raiz para Em fila, se ele estiver concluído.`);
+    const faltam = [["Clientes",subInf.cliente],["Link do Briefing",subInf.briefing],["Prazo",subInf.prazo]].filter(x => !x[1]).map(x => x[0]);
+    if (faltam.length) avisos.push(`Os subelementos deste board não têm: ${faltam.join(", ")}. Esses campos ficam de fora do subelemento.`);
+    return {
+      tipo: "subelemento", dados, bid, raiz, subInf, botao: "Confirmar e criar subelemento",
+      html: resumoHtml(setor, "Alteração", linhas, avisos)
+    };
+  }
+
+  // B) não há raiz neste board -> item novo (raiz desta área), ligado às outras áreas
+  const ligacoes = {};
+  const semColuna = [];
+  for (const o of outros){
+    const col = inf.ligacoes.find(l => l.boardIds.includes(o.boardId));
+    if (col){ (ligacoes[col.id] = ligacoes[col.id] || []).push(o.id); }
+    else semColuna.push(o);
+  }
+  for (const o of outros){
+    const ok = !semColuna.includes(o);
+    linhas.push(`Liga com <b>${esc(o.name)}</b> em ${esc(o.setor)} ${ok ? '<span class="pill ok">ligado</span>' : '<span class="pill warn">sem coluna de ligação</span>'}`);
+  }
+  if (semColuna.length) avisos.push(`Não há coluna "Conectar boards" de ${esc(inf.name)} para: ${[...new Set(semColuna.map(o=>o.setor))].join(", ")}.`);
+
+  let titulo = "Job novo";
+  if (!lido.letra && aqui.length){
+    titulo = "Possível duplicado";
+    avisos.push(`Já existe <b>${esc(aqui[0].name)}</b> neste board (${esc(aqui[0].group?.title || "")}). Confira se não é o mesmo job antes de criar.`);
+  } else if (lido.letra){
+    titulo = "Alteração · primeira vez nesta área";
+    linhas.push(`Não existe job ${esc(lido.chave)} em ${esc(setor)}. Este vira o <b>job raiz</b> desta área.`);
+  } else if (!outros.length){
+    linhas.push(`Ainda não existe em nenhuma área. Entra como <b>job raiz</b>.`);
+  }
+  return planoItemNovo({ dados, bid, inf, chave: inf.chave ? lido.chave : null, ligacoes, linhas, avisos, titulo });
+}
+
+function planoItemNovo({ dados, bid, inf, chave, ligacoes, linhas, avisos, titulo }){
+  linhas.unshift(`Entra como <b>item novo</b> no board <b>${esc(inf.name)}</b>`);
+  return { tipo: "item", dados, bid, inf, chave, ligacoes, botao: "Confirmar e criar job",
+    html: resumoHtml(SETOR_ATUAL.nome, titulo, linhas, avisos) };
+}
+
+function resumoHtml(setor, titulo, linhas, avisos){
+  return `<div class="resumo"><h3>${esc(titulo)} · ${esc(setor)}</h3>
+    <div><b>${esc(PLANO_DADOS_NOME())}</b></div>
+    <ul>${linhas.map(l => `<li>${l}</li>`).join("")}</ul></div>
+    ${avisos.map(a => `<div class="msg warn">${a}</div>`).join("")}`;
+}
+function PLANO_DADOS_NOME(){ return $("f-job").value.trim(); }
+
+$("c-editar").addEventListener("click", () => mostrar("t-form"));
+
+$("c-criar").addEventListener("click", async () => {
+  if (!PLANO) return;
+  const btn = $("c-criar"); btn.disabled = true; btn.textContent = "Criando…";
+  $("c-msg").innerHTML = "";
+  try{
+    const p = PLANO;
+    let id, nome;
+    if (p.tipo === "subelemento"){
+      const vals = montarValores(p.subInf, p.dados);
+      const d = await api(`mutation { create_subitem(parent_item_id: ${p.raiz.id}, item_name: ${gq(p.dados.job)}, column_values: ${gq(JSON.stringify(vals))}, create_labels_if_missing: false) { id name } }`);
+      id = d.create_subitem.id; nome = d.create_subitem.name;
+      CRIADO = { id, nome, texto: `Subelemento criado em <b>${esc(p.raiz.name)}</b>.` };
+    } else {
+      const vals = montarValores(p.inf, p.dados, { chave: p.chave, ligacoes: p.ligacoes });
+      const d = await api(`mutation { create_item(board_id: ${p.bid}, item_name: ${gq(p.dados.job)}, column_values: ${gq(JSON.stringify(vals))}, create_labels_if_missing: false) { id name } }`);
+      id = d.create_item.id; nome = d.create_item.name;
+      const nLig = Object.values(p.ligacoes).flat().length;
+      CRIADO = { id, nome, texto: `Job criado no board <b>${esc(p.inf.name)}</b>${nLig ? `, ligado a ${nLig} job(s) de outras áreas` : ""}.` };
+    }
+    $("p-resumo").innerHTML = `<div class="msg ok"><b>${esc(nome)}</b><br>${CRIADO.texto}</div>`;
+    mostrar("t-pronto");
+  }catch(err){
+    $("c-msg").innerHTML = `<div class="msg err">Não consegui criar: ${esc(err.message)}</div>`;
+    btn.disabled = false; btn.textContent = PLANO.botao;
+  }
+});
+
+$("p-abrir").addEventListener("click", () => {
+  if (CRIADO && monday) monday.execute("openItemCard", { itemId: Number(CRIADO.id) });
+});
+
+/* ---------- diagnóstico ---------- */
+$("btn-diag").addEventListener("click", async e => {
+  e.preventDefault();
+  mostrar("t-diag");
+  const out = $("d-saida"); out.textContent = "Verificando…";
+  try{
+    CACHE = null;
+    const est = await carregarEstrutura();
+    const ok = x => x ? "✅" : "❌";
+    let t = "";
+    for (const s of SETORES){
+      const bid = est.boardDoSetor[s.nome];
+      const inf = est.info[bid];
+      t += `■ ${s.nome}  ${s.formApp ? "(formulário do app)" : "(formulário do Monday)"}\n`;
+      if (!inf){ t += "   ❌ board não encontrado\n\n"; continue; }
+      t += `   board: ${inf.name} (${inf.id})\n`;
+      t += `   ${ok(inf.cliente)} ${COLUNAS.cliente}${inf.cliente ? ` [${inf.cliente.type}, ${inf.opcoesCliente.length} opções]` : ""}\n`;
+      t += `   ${ok(inf.briefing)} ${COLUNAS.briefing}${inf.briefing ? ` [${inf.briefing.type}]` : ""}\n`;
+      t += `   ${ok(inf.prazo)} ${COLUNAS.prazo}${inf.prazo ? ` [${inf.prazo.type}]` : ""}\n`;
+      t += `   ${ok(inf.chave)} ${COLUNAS.chave}${inf.chave ? ` [${inf.chave.type}]` : ""}\n`;
+      t += `   ${ok(inf.subBoardId)} subelementos\n`;
+      const sub = est.subInfo[inf.subBoardId];
+      if (sub) t += `      no subelemento: ${ok(sub.cliente)} ${COLUNAS.cliente} · ${ok(sub.briefing)} ${COLUNAS.briefing} · ${ok(sub.prazo)} ${COLUNAS.prazo}\n`;
+      const nomes = inf.ligacoes.map(l => {
+        const alvo = Object.keys(est.boardDoSetor).filter(k => l.boardIds.includes(est.boardDoSetor[k]));
+        return `${l.title} → ${alvo.join(", ") || "outro board"}`;
+      });
+      t += `   ligações: ${nomes.length ? nomes.join(" · ") : "nenhuma"}\n\n`;
+    }
+    if (est.avisos.length) t += "Avisos:\n- " + est.avisos.join("\n- ");
+    out.textContent = t;
+  }catch(err){ out.textContent = "Erro: " + err.message; }
+});
+
+/* ---------- lista de setores ---------- */
+const list = $("list");
+SETORES.forEach(s => {
+  const a = document.createElement("a");
+  a.className = "setor"; a.href = s.link;
+  const tipos = s.tipos.length ? `<div class="tipos">${s.tipos.map(t => `<span class="tipo">${esc(t)}</span>`).join("")}</div>` : "";
+  a.innerHTML = `<div class="top"><span class="nome">${esc(s.nome)}</span><span class="abrir">Abrir job →</span></div>${tipos}`;
+  a.addEventListener("click", e => { e.preventDefault(); s.formApp ? abrirFormApp(s) : abrirFormMonday(s); });
+  list.appendChild(a);
+});
+
+/* ---------- formulário do Monday embutido ---------- */
+const frame = $("form-frame");
+function abrirFormMonday(s){
+  frame.src = s.link.replace("forms.monday.com/forms/", "forms.monday.com/forms/embed/");
+  $("form-titulo").textContent = s.nome;
+  $("nova-aba").href = s.link;
+  document.body.classList.add("form-aberto");
+}
+$("voltar").addEventListener("click", () => { document.body.classList.remove("form-aberto"); frame.src = "about:blank"; });
 </script>
 </body>
 </html>
