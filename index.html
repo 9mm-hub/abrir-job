@@ -35,12 +35,14 @@
     "SBAH","SBP","SBR","SEG","SMA","SOU","SSC","SSC_MKT","UIM"];
 
   /* Títulos das colunas nos boards (iguais aos do formulário atual) */
+  /* Primeiro nome que existir no board é o usado (vale para item e subelemento) */
   const COLUNAS = {
-    cliente: "Clientes",
-    briefing: "Link do Briefing",
-    prazo: "Prazo",
-    chave: "Chave"
+    cliente: ["Clientes", "Cliente"],
+    briefing: ["Briefing", "Link do Briefing"],
+    prazo: ["Prazo", "Cronograma"],
+    chave: ["Chave"]
   };
+  const nomeCol = k => COLUNAS[k][0];
 </script>
 <style>
   :root{
@@ -131,7 +133,7 @@
     <p class="sub">Escolha o setor para abrir o job.</p>
     <p class="label">Setor <b>*</b></p>
     <div class="list" id="list"></div>
-    <p class="versao">v4.6 · <a href="#" id="btn-diag">verificar configuração</a></p>
+    <p class="versao">v4.7 · <a href="#" id="btn-diag">verificar configuração</a></p>
   </section>
 
   <!-- TELA 2: formulário do app -->
@@ -151,7 +153,7 @@
         <div class="contador"><span id="f-job-n">0</span>/255</div>
       </div>
       <div class="campo">
-        <label class="label" for="f-briefing">Link do Briefing <b>*</b></label>
+        <label class="label" for="f-briefing">Briefing <b>*</b></label>
         <input id="f-briefing" type="url" required placeholder="https://">
       </div>
       <div class="campo">
@@ -282,7 +284,7 @@ async function carregarEstrutura(){
 
 function montarInfoBoard(b){
   const cols = b.columns || [];
-  const porTitulo = t => cols.find(c => norm(c.title) === norm(t));
+  const porTitulo = lista => { for (const t of [].concat(lista)){ const c = cols.find(c => norm(c.title) === norm(t)); if (c) return c; } return undefined; };
   const parse = s => { try { return JSON.parse(s || "{}"); } catch(_) { return {}; } };
   const sub = cols.find(c => c.type === "subtasks");
   const ligacoes = cols.filter(c => c.type === "board_relation").map(c => ({ id: c.id, title: c.title, boardIds: (parse(c.settings_str).boardIds || []).map(String) }));
@@ -324,7 +326,8 @@ function valorColuna(col, tipo, v){
 }
 function montarValores(infoB, dados, extras = {}){
   const vals = {};
-  const put = (col, v) => { const x = valorColuna(col, null, v); if (col && x != null) vals[col.id] = x; };
+  const SO_LEITURA = ["formula","mirror","lookup","auto_number","creation_log","last_updated","item_id"];
+  const put = (col, v) => { if (!col || SO_LEITURA.includes(col.type)) return; const x = valorColuna(col, null, v); if (x != null) vals[col.id] = x; };
   put(infoB.cliente, dados.cliente);
   put(infoB.briefing, dados.briefing);
   put(infoB.prazo, dados.prazo);
@@ -398,7 +401,7 @@ async function abrirFormApp(s){
     const bid = est.boardDoSetor[s.nome];
     const inf = est.info[bid];
     if (!inf) throw new Error(`Não encontrei o board do setor "${s.nome}". Use "verificar configuração" na tela inicial.`);
-    if (!inf.cliente) throw new Error(`O board "${inf.name}" não tem a coluna "${COLUNAS.cliente}". Use "verificar configuração" na tela inicial.`);
+    if (!inf.cliente) throw new Error(`O board "${inf.name}" não tem a coluna "${nomeCol("cliente")}". Use "verificar configuração" na tela inicial.`);
     const opcoes = [...new Set([...inf.opcoesCliente, ...(inf.cliente.type === "dropdown" ? CLIENTES : [])])].sort((a,b) => a.localeCompare(b, "pt"));
     sel.innerHTML = `<option value=""></option>` + opcoes.map(o => `<option>${esc(o)}</option>`).join("");
   }catch(e){
@@ -420,7 +423,7 @@ $("form-job").addEventListener("submit", async e => {
   const falta = [];
   if (!dados.cliente) falta.push("Clientes");
   if (!dados.job) falta.push("Job");
-  if (!dados.briefing) falta.push("Link do Briefing");
+  if (!dados.briefing) falta.push("Briefing");
   if (!dados.prazo) falta.push("Prazo");
   if (falta.length){ $("f-msg").innerHTML = `<div class="msg err">Preencha: ${falta.join(", ")}.</div>`; return; }
 
@@ -459,7 +462,7 @@ async function montarPlano(dados){
     avisos.push(`Não encontrei o número do job no nome. O job vai entrar como item novo, sem ligação com outras áreas.`);
     return planoItemNovo({ dados, bid, inf, chave: null, ligacoes: {}, linhas, avisos, titulo: "Job novo" });
   }
-  if (!inf.chave) avisos.push(`O board "${inf.name}" não tem a coluna "${COLUNAS.chave}". O job vai entrar sem chave.`);
+  if (!inf.chave) avisos.push(`O board "${inf.name}" não tem a coluna "${nomeCol("chave")}". O job vai entrar sem chave.`);
 
   const achados = await procurarJob(est, lido, codigo);
   const aqui = achados.filter(a => a.boardId === bid);
@@ -476,7 +479,7 @@ async function montarPlano(dados){
     if (!subInf) throw new Error(`O board "${inf.name}" não tem coluna de subelementos.`);
     linhas.push(`Entra como <b>subelemento</b> de <b>${esc(raiz.name)}</b> <span class="pill ok">${esc(raiz.group?.title || "")}</span>`);
     linhas.push(`Sua automação de subelemento cuida de mover o job raiz para Em fila, se ele estiver concluído.`);
-    const faltam = [["Clientes",subInf.cliente],["Link do Briefing",subInf.briefing],["Prazo",subInf.prazo]].filter(x => !x[1]).map(x => x[0]);
+    const faltam = [["Briefing",subInf.briefing],["Prazo",subInf.prazo]].filter(x => !x[1]).map(x => x[0]);
     if (faltam.length) avisos.push(`Os subelementos deste board não têm: ${faltam.join(", ")}. Esses campos ficam de fora do subelemento.`);
     return {
       tipo: "subelemento", dados, bid, raiz, subInf, chave: lido.chave, chaveCol: inf.chave, botao: "Confirmar e criar subelemento",
@@ -577,13 +580,13 @@ $("btn-diag").addEventListener("click", async e => {
       t += `■ ${s.nome}  ${s.formApp ? "(formulário do app)" : "(formulário do Monday)"}\n`;
       if (!inf){ t += "   ❌ board não encontrado\n\n"; continue; }
       t += `   board: ${inf.name} (${inf.id})\n`;
-      t += `   ${ok(inf.cliente)} ${COLUNAS.cliente}${inf.cliente ? ` [${inf.cliente.type}, ${inf.opcoesCliente.length} opções]` : ""}\n`;
-      t += `   ${ok(inf.briefing)} ${COLUNAS.briefing}${inf.briefing ? ` [${inf.briefing.type}]` : ""}\n`;
-      t += `   ${ok(inf.prazo)} ${COLUNAS.prazo}${inf.prazo ? ` [${inf.prazo.type}]` : ""}\n`;
-      t += `   ${ok(inf.chave)} ${COLUNAS.chave}${inf.chave ? ` [${inf.chave.type}]` : ""}\n`;
+      t += `   ${ok(inf.cliente)} ${nomeCol("cliente")}${inf.cliente ? ` [${inf.cliente.type}, ${inf.opcoesCliente.length} opções]` : ""}\n`;
+      t += `   ${ok(inf.briefing)} ${inf.briefing ? inf.briefing.title : nomeCol("briefing")}${inf.briefing ? ` [${inf.briefing.type}]` : ""}\n`;
+      t += `   ${ok(inf.prazo)} ${nomeCol("prazo")}${inf.prazo ? ` [${inf.prazo.type}]` : ""}\n`;
+      t += `   ${ok(inf.chave)} ${nomeCol("chave")}${inf.chave ? ` [${inf.chave.type}]` : ""}\n`;
       t += `   ${ok(inf.subBoardId)} subelementos\n`;
       const sub = est.subInfo[inf.subBoardId];
-      if (sub) t += `      no subelemento: ${ok(sub.cliente)} ${COLUNAS.cliente} · ${ok(sub.briefing)} ${COLUNAS.briefing} · ${ok(sub.prazo)} ${COLUNAS.prazo}\n`;
+      if (sub) t += `      no subelemento: ${ok(sub.briefing)} ${sub.briefing ? sub.briefing.title : nomeCol("briefing")} · ${ok(sub.prazo)} ${sub.prazo ? sub.prazo.title : nomeCol("prazo")}${sub.cliente ? ` · ${sub.cliente.title} [${sub.cliente.type}${sub.cliente.type === "formula" ? ", preenchido pelo Monday" : ""}]` : ""}\n`;
       const nomes = inf.ligacoes.map(l => {
         const alvo = Object.keys(est.boardDoSetor).filter(k => l.boardIds.includes(est.boardDoSetor[k]));
         return `${l.title} → ${alvo.join(", ") || "outro board"}`;
