@@ -15,7 +15,7 @@
      boardId: opcional. Se vazio, o app procura o board pelo nome do setor.
      ================================================= */
   const SETORES = [
-    { nome: "Criação", formApp: true, boardId: "18436265769", link: "https://forms.monday.com/forms/64128c1e245d79a0ecfbdf579c2b3850?r=use1",
+    { nome: "Criação", formApp: true, boardId: "18436448382", link: "https://forms.monday.com/forms/64128c1e245d79a0ecfbdf579c2b3850?r=use1",
       tipos: ["Criação do Zero","Alterações","Desdobramento","Newsletter","Pauta","Blog"] },
     { nome: "Mídia e Performance", formApp: false, boardId: "18436266667", link: "https://forms.monday.com/forms/24e34c97beda1f49ee1a620cd2adb327?r=use1",
       tipos: ["Mídia Off","Mídia On e Perfor.","Mídia On e Off","Relatório Mídia"] },
@@ -65,8 +65,11 @@
   .top{display:flex;align-items:center;justify-content:space-between;gap:12px}
   .nome{font-size:16px;font-weight:500}
   .abrir{font-size:13px;font-weight:600;color:#1a1a1a;background:var(--cta);border-radius:4px;padding:5px 12px;white-space:nowrap}
-  .tipos{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
-  .tipo{font-size:11px;color:#a8a8a8;background:#383838;border:1px solid #444;padding:2px 7px;border-radius:2px;line-height:1.3}
+  /* bolinha só ENTRE os tipos: a do começo de cada linha fica escondida */
+  .tipos{overflow:hidden;margin-top:6px}
+  .tipos-in{display:flex;flex-wrap:wrap;row-gap:2px;margin-left:-19px}
+  .tipo{font-size:12px;color:#9a9a9a;line-height:1.4;white-space:nowrap}
+  .tipo::before{content:"•";display:inline-block;width:19px;text-align:center;color:#6a6a6a}
   .versao{text-align:center;color:#555;font-size:11px;margin:24px 0 0}
   .versao a{color:#666}
 
@@ -128,7 +131,7 @@
     <p class="sub">Escolha o setor para abrir o job.</p>
     <p class="label">Setor <b>*</b></p>
     <div class="list" id="list"></div>
-    <p class="versao">v4.3 · <a href="#" id="btn-diag">verificar configuração</a></p>
+    <p class="versao">v4.6 · <a href="#" id="btn-diag">verificar configuração</a></p>
   </section>
 
   <!-- TELA 2: formulário do app -->
@@ -600,7 +603,7 @@ const list = $("list");
 SETORES.forEach(s => {
   const a = document.createElement("a");
   a.className = "setor"; a.href = s.link;
-  const tipos = s.tipos.length ? `<div class="tipos">${s.tipos.map(t => `<span class="tipo">${esc(t)}</span>`).join("")}</div>` : "";
+  const tipos = s.tipos.length ? `<div class="tipos"><div class="tipos-in">${s.tipos.map(t => `<span class="tipo">${esc(t)}</span>`).join("")}</div></div>` : "";
   a.innerHTML = `<div class="top"><span class="nome">${esc(s.nome)}</span><span class="abrir">Abrir job →</span></div>${tipos}`;
   a.addEventListener("click", e => { e.preventDefault(); s.formApp ? abrirFormApp(s) : abrirFormMonday(s); });
   list.appendChild(a);
