@@ -15,18 +15,24 @@
      boardId: opcional. Se vazio, o app procura o board pelo nome do setor.
      ================================================= */
   const SETORES = [
-    { nome: "Criação", formApp: true, boardId: "", link: "https://forms.monday.com/forms/64128c1e245d79a0ecfbdf579c2b3850?r=use1",
+    { nome: "Criação", formApp: true, boardId: "18436265769", link: "https://forms.monday.com/forms/64128c1e245d79a0ecfbdf579c2b3850?r=use1",
       tipos: ["Criação do Zero","Alterações","Desdobramento","Newsletter","Pauta","Blog"] },
-    { nome: "Mídia e Performance", formApp: true, boardId: "", link: "https://forms.monday.com/forms/24e34c97beda1f49ee1a620cd2adb327?r=use1",
+    { nome: "Mídia e Performance", formApp: false, boardId: "18436266667", link: "https://forms.monday.com/forms/24e34c97beda1f49ee1a620cd2adb327?r=use1",
       tipos: ["Mídia Off","Mídia On e Perfor.","Mídia On e Off","Relatório Mídia"] },
-    { nome: "Digital", formApp: false, boardId: "", link: "https://forms.monday.com/forms/f6aafa78faf2b562d26143180444cbe9?r=use1",
+    { nome: "Digital", formApp: false, boardId: "18436266703", link: "https://forms.monday.com/forms/f6aafa78faf2b562d26143180444cbe9?r=use1",
       tipos: ["Ag. Redes","Ag. Emails","Ag. Redes e Emails","Relatório Digital","Social Media"] },
-    { nome: "Arte Final", formApp: false, boardId: "", link: "https://forms.monday.com/forms/044c5fe3aec0135bab7e11f8bff0e170?r=use1", tipos: [] },
-    { nome: "Revisão", formApp: false, boardId: "", link: "https://forms.monday.com/forms/aaab2047ddfb2034eebc145fc21e4a5a?r=use1", tipos: [] },
-    { nome: "Produção", formApp: false, boardId: "", link: "https://forms.monday.com/forms/8dbe2da4e3abff4821e55d134dc33f43?r=use1", tipos: [] },
-    { nome: "CRM", formApp: false, boardId: "", link: "https://forms.monday.com/forms/f1b7f1c0991ba2a74e43aebfb571ae5b?r=use1",
+    { nome: "Arte Final", formApp: false, boardId: "18436266851", link: "https://forms.monday.com/forms/044c5fe3aec0135bab7e11f8bff0e170?r=use1", tipos: [] },
+    { nome: "Revisão", formApp: false, boardId: "18436266777", link: "https://forms.monday.com/forms/aaab2047ddfb2034eebc145fc21e4a5a?r=use1", tipos: [] },
+    { nome: "Produção", formApp: false, boardId: "18436266736", link: "https://forms.monday.com/forms/8dbe2da4e3abff4821e55d134dc33f43?r=use1", tipos: [] },
+    { nome: "CRM", formApp: false, boardId: "18436266964", link: "https://forms.monday.com/forms/f1b7f1c0991ba2a74e43aebfb571ae5b?r=use1",
       tipos: ["Criação CRM","Desenvolvedor","Disparo","Jornada","Relatório CRM","Desenvolvedor e Disparo","Criação, Desenvolvedor e Disparo","Criação e Desenvolvedor"] }
   ];
+
+  /* Códigos de clientes. Usados quando a coluna "Clientes" do board ainda não tem opções
+     (a opção é criada no board na primeira vez que for usada). */
+  const CLIENTES = ["9MM","ACC","ACI","ADV","AOC","AVA","BAM","BRU","CAD","CAR","CBN","CMA","CRA","CRG","CTR","DEP","EEE","EIS",
+    "ENC","END","ENG","FLO","GAE","GRA","HF1","IBA","INO","JB3","LOF","MAA","MCI","MCO","MIC","MRS","NES","PEN","PNA","PRE",
+    "SBAH","SBP","SBR","SEG","SMA","SOU","SSC","SSC_MKT","UIM"];
 
   /* Títulos das colunas nos boards (iguais aos do formulário atual) */
   const COLUNAS = {
@@ -122,7 +128,7 @@
     <p class="sub">Escolha o setor para abrir o job.</p>
     <p class="label">Setor <b>*</b></p>
     <div class="list" id="list"></div>
-    <p class="versao">v4 · <a href="#" id="btn-diag">verificar configuração</a></p>
+    <p class="versao">v4.2 · <a href="#" id="btn-diag">verificar configuração</a></p>
   </section>
 
   <!-- TELA 2: formulário do app -->
@@ -290,7 +296,7 @@ function montarInfoBoard(b){
     opcoesCliente = opcoesCliente.filter(Boolean).sort((a,b) => a.localeCompare(b, "pt"));
   }
   return {
-    id: String(b.id), name: b.name,
+    id: String(b.id), name: b.name, todas: cols.map(c => ({ title: c.title, type: c.type })),
     cliente, opcoesCliente,
     briefing: porTitulo(COLUNAS.briefing),
     prazo: porTitulo(COLUNAS.prazo),
@@ -326,7 +332,7 @@ function montarValores(infoB, dados, extras = {}){
 
 /* ---------- ler número e letra do nome ---------- */
 function lerJob(nome, codigo){
-  const resto = "(?:[\\s_\\-]*0*(\\d{1,4}))(?:([A-Za-z])(?![A-Za-zÀ-ÿ])|[\\s_\\-]+([A-Za-z])(?=[\\s_]|$))?";
+  const resto = "(?:[\\s_\\-]*(\\d{1,5}))(?:([A-Za-z])(?![A-Za-zÀ-ÿ])|[\\s_\\-]+([A-Za-z])(?=[\\s_]|$))?";
   let m = codigo ? new RegExp("^\\s*" + reEsc(codigo) + resto, "i").exec(nome) : null;
   if (!m) m = new RegExp("^\\s*[A-Za-z]+(?:_[A-Za-z]+)?" + resto, "i").exec(nome);
   if (!m) return null;
@@ -371,8 +377,9 @@ async function abrirFormApp(s){
     const bid = est.boardDoSetor[s.nome];
     const inf = est.info[bid];
     if (!inf) throw new Error(`Não encontrei o board do setor "${s.nome}". Use "verificar configuração" na tela inicial.`);
-    if (!inf.opcoesCliente.length) throw new Error(`O board "${inf.name}" não tem a coluna "${COLUNAS.cliente}" (lista suspensa ou status).`);
-    sel.innerHTML = `<option value=""></option>` + inf.opcoesCliente.map(o => `<option>${esc(o)}</option>`).join("");
+    if (!inf.cliente) throw new Error(`O board "${inf.name}" não tem a coluna "${COLUNAS.cliente}". Use "verificar configuração" na tela inicial.`);
+    const opcoes = [...new Set([...inf.opcoesCliente, ...(inf.cliente.type === "dropdown" ? CLIENTES : [])])].sort((a,b) => a.localeCompare(b, "pt"));
+    sel.innerHTML = `<option value=""></option>` + opcoes.map(o => `<option>${esc(o)}</option>`).join("");
   }catch(e){
     sel.innerHTML = `<option value="">—</option>`;
     $("f-msg").innerHTML = `<div class="msg err">${esc(e.message)}</div>`;
@@ -498,12 +505,12 @@ $("c-criar").addEventListener("click", async () => {
     let id, nome;
     if (p.tipo === "subelemento"){
       const vals = montarValores(p.subInf, p.dados);
-      const d = await api(`mutation { create_subitem(parent_item_id: ${p.raiz.id}, item_name: ${gq(p.dados.job)}, column_values: ${gq(JSON.stringify(vals))}, create_labels_if_missing: false) { id name } }`);
+      const d = await api(`mutation { create_subitem(parent_item_id: ${p.raiz.id}, item_name: ${gq(p.dados.job)}, column_values: ${gq(JSON.stringify(vals))}, create_labels_if_missing: true) { id name } }`);
       id = d.create_subitem.id; nome = d.create_subitem.name;
       CRIADO = { id, nome, texto: `Subelemento criado em <b>${esc(p.raiz.name)}</b>.` };
     } else {
       const vals = montarValores(p.inf, p.dados, { chave: p.chave, ligacoes: p.ligacoes });
-      const d = await api(`mutation { create_item(board_id: ${p.bid}, item_name: ${gq(p.dados.job)}, column_values: ${gq(JSON.stringify(vals))}, create_labels_if_missing: false) { id name } }`);
+      const d = await api(`mutation { create_item(board_id: ${p.bid}, item_name: ${gq(p.dados.job)}, column_values: ${gq(JSON.stringify(vals))}, create_labels_if_missing: true) { id name } }`);
       id = d.create_item.id; nome = d.create_item.name;
       const nLig = Object.values(p.ligacoes).flat().length;
       CRIADO = { id, nome, texto: `Job criado no board <b>${esc(p.inf.name)}</b>${nLig ? `, ligado a ${nLig} job(s) de outras áreas` : ""}.` };
@@ -547,7 +554,10 @@ $("btn-diag").addEventListener("click", async e => {
         const alvo = Object.keys(est.boardDoSetor).filter(k => l.boardIds.includes(est.boardDoSetor[k]));
         return `${l.title} → ${alvo.join(", ") || "outro board"}`;
       });
-      t += `   ligações: ${nomes.length ? nomes.join(" · ") : "nenhuma"}\n\n`;
+      t += `   ligações: ${nomes.length ? nomes.join(" · ") : "nenhuma"}\n`;
+      t += `   todas as colunas: ${inf.todas.map(c => `${c.title} [${c.type}]`).join(" · ") || "(nenhuma)"}\n`;
+      if (sub) t += `   colunas do subelemento: ${sub.todas.map(c => `${c.title} [${c.type}]`).join(" · ")}\n`;
+      t += `\n`;
     }
     if (est.avisos.length) t += "Avisos:\n- " + est.avisos.join("\n- ");
     out.textContent = t;
